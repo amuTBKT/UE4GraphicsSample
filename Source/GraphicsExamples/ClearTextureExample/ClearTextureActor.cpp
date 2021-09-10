@@ -34,8 +34,8 @@ void AClearTextureActor::BeginPlay()
 			FTextureRenderTarget2DResource* TextureResource = (FTextureRenderTarget2DResource*)ResultTexture->Resource;
 			ResultTextureUAV = RHICreateUnorderedAccessView(TextureResource->TextureRHI, /*MipLevel=*/ 0); //we are rendering to first mip
 
-			// texture to be used by Material (graphics)
-			RHICmdList.Transition(FRHITransitionInfo(ResultTextureUAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+			// texture to be used by Material (graphics). Looks like we don't need them if using RenderGraph
+			// RHICmdList.Transition(FRHITransitionInfo(ResultTextureUAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 		});
 
 	Super::BeginPlay();
@@ -104,17 +104,17 @@ void AClearTextureActor::Tick(float DeltaSeconds)
 			// some validation (refer to link above)
 			ValidateShaderParameters(ComputeShader, *PassParameters);
 
-			// texture needs to be in writable state from compute shader
-			RHICmdList.Transition(FRHITransitionInfo(ResultTextureUAV, ERHIAccess::SRVGraphics, ERHIAccess::UAVCompute));
+			// texture needs to be in writable state from compute shader. Looks like we don't need them if using RenderGraph
+			// RHICmdList.Transition(FRHITransitionInfo(ResultTextureUAV, ERHIAccess::SRVGraphics, ERHIAccess::UAVCompute));
 
 			// add our pass
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("ClearTexture_Animated"),
+				RDG_EVENT_NAME("ClearTexture"),
 				ComputeShader, PassParameters, GroupCount);
 
-			// texture to be used by Material (graphics)
-			RHICmdList.Transition(FRHITransitionInfo(ResultTextureUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVGraphics));
+			// texture to be used by Material (graphics). Looks like we don't need them if using RenderGraph
+			// RHICmdList.Transition(FRHITransitionInfo(ResultTextureUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVGraphics));
 
 			// we can add more work here
 
