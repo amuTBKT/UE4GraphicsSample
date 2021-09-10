@@ -1,0 +1,33 @@
+// every shader needs to include this
+#include "/Engine/Private/Common.ush"
+
+// in case we forget to set 'USE_ANIMATION' definition in code
+#ifndef USE_ANIMATION
+#define USE_ANIMATION 0
+#endif
+
+// Parameters, should match the ones in code
+RWTexture2D<float4> OutputTexture;
+float4 ClearColor;
+float4 TextureDimensions; // Width, Height, 1/Width, 1/Height
+float AnimationTime;
+
+// numthreads can also be set from code
+[numthreads(8, 8, 8)]
+void Main(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    float2 ScreenPosition = float2(DispatchThreadId.xy);
+    if (ScreenPosition.x < TextureDimensions.x && ScreenPosition.y < TextureDimensions.y)
+    {
+        float4 OutputColor = ClearColor;
+
+        // shows that we can enable/disable logic based on definition set from code
+    #if USE_ANIMATION
+        float2 UV = ScreenPosition * TextureDimensions.zw;
+        OutputColor.xyz = 0.5f + 0.5f * cos(AnimationTime + UV.xyx + float3(0.f, 2.f, 4.f));
+        OutputColor.w = 1.f;
+    #endif
+        
+        OutputTexture[DispatchThreadId.xy] = OutputColor;
+    }
+}

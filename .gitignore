@@ -1,0 +1,15 @@
+.vs
+enc_temp_folder/
+Binaries/
+DerivedDataCache/
+Intermediate/
+Platforms/
+Saved/
+Script/
+
+*.lnk
+*.pdb
+*.dll
+*.lib
+*.exe
+*.sln

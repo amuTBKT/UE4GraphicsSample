@@ -1,0 +1,25 @@
+{
+	"FileVersion" : 1,
+	"Version" : 1,
+	"VersionName" : "1.0",
+	"FriendlyName" : "Graphics Plugin",
+	"Description" : "Code samples to show how to use Rendering features in Unreal :)",
+	"Category" : "Rendering",
+	"CreatedBy" : "Amit Mehar",
+	"CreatedByURL" : "https://twitter.com/amu_mhr",
+	"DocsURL" : "",
+	"MarketplaceURL" : "",
+	"SupportURL" : "",
+	"EnabledByDefault" : false,
+	"CanContainContent" : true,
+	"IsBetaVersion" : true,
+	"Installed" : false,
+	"Modules" :
+	[
+		{
+			"Name" : "GraphicsPlugin",
+			"Type" : "Runtime",
+			"LoadingPhase" : "PostConfigInit"
+		}
+	]
+}
