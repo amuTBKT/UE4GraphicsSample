@@ -6,7 +6,7 @@
 #include "ShaderPermutation.h"
 #include "ShaderParameterStruct.h"
 
-// GlobalShader has only one instance active in the application
+// GlobalShader has only one instance active in the application, refer Engine/Source/Runtime/RenderCore/Public/GlobalShader.h for more details
 class GRAPHICSPLUGIN_API FClearTextureCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FClearTextureCS)
