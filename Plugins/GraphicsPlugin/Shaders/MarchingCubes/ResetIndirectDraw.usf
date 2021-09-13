@@ -1,0 +1,19 @@
+// every shader needs to include this
+#include "/Engine/Private/Common.ush"
+
+RWBuffer<uint>      IndirectDrawArgsBuffer;
+
+// numthreads can also be set from code
+[numthreads(1, 1, 1)]
+void Main(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    // IndirectDrawArgsBuffer[0] : VertexCountPerInstance
+    // IndirectDrawArgsBuffer[1] : InstanceCount
+    // IndirectDrawArgsBuffer[2] : StartVertexLocation
+    // IndirectDrawArgsBuffer[3] : StartInstanceLocation
+
+    IndirectDrawArgsBuffer[0] = 0;
+    IndirectDrawArgsBuffer[1] = 1; //We are only rendering one instance
+    IndirectDrawArgsBuffer[2] = 0;
+    IndirectDrawArgsBuffer[3] = 0;
+}

@@ -1,0 +1,99 @@
+#include "MarchingCubesCommon.ush"
+
+RWBuffer<float>             PositionBuffer;
+RWBuffer<SNORM float4>      TangentBuffer;
+RWBuffer<uint>              IndirectDrawArgsBuffer;
+Texture2D<uint>             TriangleVerticesLookupTable;
+Buffer<uint>                NumVerticesLookupTable;
+int3                        VoxelCount;
+float                       VoxelSize;
+float                       IsoValue;
+float                       Time;
+uint                        MaxVertices;
+
+[numthreads(4, 4, 4)]
+void Main(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+    if (all(DispatchThreadId < VoxelCount))
+    {
+        float3 GridPos = float3(DispatchThreadId);
+        
+        float3 p = (GridPos * 2.f - VoxelCount) * VoxelSize * 0.5f;
+
+        // calculate cell vertex positions
+        float2 Offset = float2(VoxelSize, 0.f);
+
+        float3 CornerVerts[8];
+        CornerVerts[0] = p;
+        CornerVerts[1] = p + Offset.xyy;
+        CornerVerts[2] = p + Offset.xxy;
+        CornerVerts[3] = p + Offset.yxy;
+        CornerVerts[4] = p + Offset.yyx;
+        CornerVerts[5] = p + Offset.xyx;
+        CornerVerts[6] = p + Offset.xxx;
+        CornerVerts[7] = p + Offset.yxx;
+
+        // evaluate SDF at corners
+        float4 CornerValues[8];
+        CornerValues[0] = GetNormalAndDist(CornerVerts[0], Time);
+        CornerValues[1] = GetNormalAndDist(CornerVerts[1], Time);
+        CornerValues[2] = GetNormalAndDist(CornerVerts[2], Time);
+        CornerValues[3] = GetNormalAndDist(CornerVerts[3], Time);
+        CornerValues[4] = GetNormalAndDist(CornerVerts[4], Time);
+        CornerValues[5] = GetNormalAndDist(CornerVerts[5], Time);
+        CornerValues[6] = GetNormalAndDist(CornerVerts[6], Time);
+        CornerValues[7] = GetNormalAndDist(CornerVerts[7], Time);
+
+        uint Cubeindex;
+        Cubeindex =  uint(CornerValues[0].w < IsoValue);
+        Cubeindex += uint(CornerValues[1].w < IsoValue) * 2;
+        Cubeindex += uint(CornerValues[2].w < IsoValue) * 4;
+        Cubeindex += uint(CornerValues[3].w < IsoValue) * 8;
+        Cubeindex += uint(CornerValues[4].w < IsoValue) * 16;
+        Cubeindex += uint(CornerValues[5].w < IsoValue) * 32;
+        Cubeindex += uint(CornerValues[6].w < IsoValue) * 64;
+        Cubeindex += uint(CornerValues[7].w < IsoValue) * 128;
+
+        // output triangle vertices
+        uint NumVerts = NumVerticesLookupTable[Cubeindex];
+        if (NumVerts > 0)
+        {
+            // find the vertices where the surface intersects the cube
+            float3 VertList[12];
+            float3 NormList[12];
+            VertexInterp2(IsoValue, CornerVerts[0], CornerVerts[1], CornerValues[0], CornerValues[1], VertList[0], NormList[0]);
+            VertexInterp2(IsoValue, CornerVerts[1], CornerVerts[2], CornerValues[1], CornerValues[2], VertList[1], NormList[1]);
+            VertexInterp2(IsoValue, CornerVerts[2], CornerVerts[3], CornerValues[2], CornerValues[3], VertList[2], NormList[2]);
+            VertexInterp2(IsoValue, CornerVerts[3], CornerVerts[0], CornerValues[3], CornerValues[0], VertList[3], NormList[3]);
+
+            VertexInterp2(IsoValue, CornerVerts[4], CornerVerts[5], CornerValues[4], CornerValues[5], VertList[4], NormList[4]);
+            VertexInterp2(IsoValue, CornerVerts[5], CornerVerts[6], CornerValues[5], CornerValues[6], VertList[5], NormList[5]);
+            VertexInterp2(IsoValue, CornerVerts[6], CornerVerts[7], CornerValues[6], CornerValues[7], VertList[6], NormList[6]);
+            VertexInterp2(IsoValue, CornerVerts[7], CornerVerts[4], CornerValues[7], CornerValues[4], VertList[7], NormList[7]);
+
+            VertexInterp2(IsoValue, CornerVerts[0], CornerVerts[4], CornerValues[0], CornerValues[4], VertList[8], NormList[8]);
+            VertexInterp2(IsoValue, CornerVerts[1], CornerVerts[5], CornerValues[1], CornerValues[5], VertList[9], NormList[9]);
+            VertexInterp2(IsoValue, CornerVerts[2], CornerVerts[6], CornerValues[2], CornerValues[6], VertList[10], NormList[10]);
+            VertexInterp2(IsoValue, CornerVerts[3], CornerVerts[7], CornerValues[3], CornerValues[7], VertList[11], NormList[11]);
+
+            uint WriteIndex;
+            InterlockedAdd(IndirectDrawArgsBuffer[0], NumVerts, WriteIndex);
+
+            for (int i = 0; i < NumVerts; i++)
+            {
+                uint TriVertex = TriangleVerticesLookupTable.Load(uint3(i, Cubeindex, 0));
+
+                uint Index = WriteIndex + i;
+                if (Index < MaxVertices)
+                {
+                    PositionBuffer[Index * 3 + 0] = VertList[TriVertex].x;
+                    PositionBuffer[Index * 3 + 1] = VertList[TriVertex].y;
+                    PositionBuffer[Index * 3 + 2] = VertList[TriVertex].z;
+                    
+                    TangentBuffer[Index * 2 + 0] = float4(cross(float3(0,1,0), NormList[TriVertex]), 0.0f);
+                    TangentBuffer[Index * 2 + 1] = float4(NormList[TriVertex], 0.0f);
+                }
+            }
+        }
+    }
+}
