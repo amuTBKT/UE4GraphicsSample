@@ -6,6 +6,7 @@ Intermediate/
 Platforms/
 Saved/
 Script/
+Build/
 
 *.lnk
 *.pdb

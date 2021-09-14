@@ -44,7 +44,7 @@ void AClearTextureActor::BeginPlay()
 void AClearTextureActor::BeginDestroy()
 {
 	// queue task on RenderThread to release UAV resource
-	ENQUEUE_RENDER_COMMAND(ClearTextureActor_InitializeUAV)(
+	ENQUEUE_RENDER_COMMAND(ClearTextureActor_DestroyResources)(
 		[this](FRHICommandListImmediate& RHICmdList)
 		{
 			ResultTextureUAV.SafeRelease();
