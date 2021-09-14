@@ -40,7 +40,7 @@ void AMarchingCubesProceduralMeshActor::OnCreatedSceneProxyRendererResources(FCS
 		FRTParams RTParams = {};
 		RTParams.SceneProxy = SceneProxy;
 		RTParams.IsoValue = IsoValue;
-		RTParams.Time = 0.f;
+		RTParams.Time = AnimationTime;
 
 		TickSceneProxy_RT(RHICmdList, RTParams);
 	}
