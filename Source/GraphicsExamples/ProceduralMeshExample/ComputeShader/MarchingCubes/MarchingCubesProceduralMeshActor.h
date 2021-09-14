@@ -1,15 +1,14 @@
 #pragma once
 
 #include "RHI.h"
-#include "GameFramework/Actor.h"
+#include "ProceduralMesh/ComputeShaderProceduralMeshActor.h"
 #include "MarchingCubesProceduralMeshActor.generated.h"
 
-class UComputeShaderProceduralMeshComponent;
-class FCSProceduralMeshSceneProxy;
 class FRDGBuilder;
+class FRHICommandListImmediate;
 
 UCLASS()
-class GRAPHICSEXAMPLES_API AMarchingCubesProceduralMeshActor : public AActor
+class GRAPHICSEXAMPLES_API AMarchingCubesProceduralMeshActor : public AComputeShaderProceduralMeshActor
 {
 	GENERATED_BODY()
 
@@ -19,9 +18,9 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	
 protected:
-	virtual void BeginPlay() override;
+	virtual void OnCreatedSceneProxyRendererResources(FCSProceduralMeshSceneProxy* SceneProxy) override;
 	virtual void BeginDestroy() override;
-
+	
 private:
 	struct FRTParams
 	{
@@ -29,13 +28,11 @@ private:
 		float IsoValue = 0.f;
 		float Time = 0.f;
 	};
+	void TickSceneProxy_RT(FRHICommandListImmediate& RHICmdList, const FRTParams& RTParams);
 	void ResetIndirectDrawArgs(FRDGBuilder& GraphBuilder, const FRTParams& RTParams, ERHIFeatureLevel::Type FeatureLevel);
 	void GenerateTriangles(FRDGBuilder& GraphBuilder, const FRTParams& RTParams, ERHIFeatureLevel::Type FeatureLevel);
 
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxels")
-	UComputeShaderProceduralMeshComponent* ProceduralMeshComponent = nullptr;
-	
+public:	
 	UPROPERTY(EditAnywhere, Category = "Voxels")
 	FIntVector VoxelCount = FIntVector(32, 32, 32);
 

@@ -1,27 +1,18 @@
 #pragma once
 
-#include "GameFramework/Actor.h"
+#include "ProceduralMesh/ComputeShaderProceduralMeshActor.h"
 #include "HelloTriangleProceduralMeshActor.generated.h"
 
-class UComputeShaderProceduralMeshComponent;
-
 UCLASS()
-class GRAPHICSEXAMPLES_API AHelloTriangleProceduralMeshActor : public AActor
+class GRAPHICSEXAMPLES_API AHelloTriangleProceduralMeshActor : public AComputeShaderProceduralMeshActor
 {
 	GENERATED_BODY()
 
 public:
 	AHelloTriangleProceduralMeshActor();
 
-	virtual void Tick(float DeltaSeconds) override;
-	
-protected:
-	virtual void BeginPlay() override;
-	virtual void BeginDestroy() override;
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProceduralMesh")
-	UComputeShaderProceduralMeshComponent* ProceduralMeshComponent = nullptr;
+private:
+	virtual void OnCreatedSceneProxyRendererResources(FCSProceduralMeshSceneProxy* SceneProxy) override;
 
 public:
 	UPROPERTY(EditAnywhere, Category="ProceduralMesh")

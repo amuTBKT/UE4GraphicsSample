@@ -5,8 +5,10 @@
 #include "Components/PrimitiveComponent.h"
 #include "ComputeShaderProceduralMeshComponent.generated.h"
 
-class FPrimitiveSceneProxy;
 class UMaterialInterface;
+class FPrimitiveSceneProxy;
+class FRegisterComponentContext;
+class FCSProceduralMeshSceneProxy;
 
 UCLASS(hidecategories=(Collision,Object,Physics,SceneComponent,Activation,"Components|Activation"), ClassGroup=Rendering, meta=(BlueprintSpawnableComponent))
 class GRAPHICSPLUGIN_API UComputeShaderProceduralMeshComponent : public UPrimitiveComponent
@@ -19,7 +21,10 @@ public:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual UMaterialInterface* GetMaterial(int32 Index) const override;
 	virtual void SetMaterial(int32 ElementIndex, class UMaterialInterface* InMaterial) override;
-	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;	
+#if WITH_EDITOR
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+#endif
 	//~ End UPrimitiveComponent Interface
 
 #if WITH_EDITOR
@@ -31,6 +36,11 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "ProceduralMesh")
 	int32 GetMaxPrimitiveCount() const { return MaxPrimitives; }
+
+#if WITH_EDITOR
+	DECLARE_DELEGATE_OneParam(FOnCreatedSceneProxy, FCSProceduralMeshSceneProxy*);
+	FOnCreatedSceneProxy OnCreatedSceneProxy;
+#endif
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProceduralMesh")

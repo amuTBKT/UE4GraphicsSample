@@ -31,6 +31,11 @@ public:
 
 	uint32 GetMaxPrimitiveCount() const				{ return MaxPrimitiveCount; }
 
+#if WITH_EDITOR
+	DECLARE_DELEGATE_OneParam(FOnCreatedRendererResources, FCSProceduralMeshSceneProxy*);
+	FOnCreatedRendererResources OnCreatedRendererResources;
+#endif
+
 	// {BOILER_PLATE BEGIN}
 #pragma region Hidden
 	SIZE_T GetTypeHash() const override

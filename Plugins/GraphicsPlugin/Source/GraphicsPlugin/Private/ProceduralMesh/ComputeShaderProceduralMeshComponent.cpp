@@ -7,9 +7,18 @@ UComputeShaderProceduralMeshComponent::UComputeShaderProceduralMeshComponent(con
 	SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 }
 
+#if WITH_EDITOR
+void UComputeShaderProceduralMeshComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
+{
+	Super::CreateRenderState_Concurrent(Context);
+
+	OnCreatedSceneProxy.ExecuteIfBound((FCSProceduralMeshSceneProxy*)SceneProxy);
+}
+#endif
+
 FBoxSphereBounds UComputeShaderProceduralMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	const FVector ScaledBounds = FixedLocalBounds * LocalToWorld.GetScale3D();
+	const FVector ScaledBounds = FixedLocalBounds * LocalToWorld.GetScale3D() * 0.5f;
 	return FBoxSphereBounds(LocalToWorld.GetLocation(), ScaledBounds, ScaledBounds.Size());
 }
 

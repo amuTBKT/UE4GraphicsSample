@@ -100,6 +100,10 @@ void FCSProceduralMeshSceneProxy::CreateRenderThreadResources()
 	// initialize vertex factory
 	VertexFactory.SetData(Data);
 	VertexFactory.InitResource();
+
+#if WITH_EDITOR
+	OnCreatedRendererResources.ExecuteIfBound(this);
+#endif
 }
 
 void FCSProceduralMeshSceneProxy::DestroyRenderThreadResources()
@@ -132,7 +136,7 @@ void FCSProceduralMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSce
 			Mesh.MaterialRenderProxy = RenderMaterial->GetRenderProxy();
 			Mesh.LCI = NULL;
 			Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
-			Mesh.CastShadow = true; //TODO
+			Mesh.CastShadow = true;
 			Mesh.DepthPriorityGroup = (ESceneDepthPriorityGroup)GetDepthPriorityGroup(View);
 			Mesh.Type = PT_TriangleList;
 			Mesh.bDisableBackfaceCulling = false;
@@ -143,7 +147,7 @@ void FCSProceduralMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSce
 			BatchElement.MinVertexIndex = 0;
 			BatchElement.MaxVertexIndex = (PositionBuffer.NumBytes / sizeof(FVector)) - 1;
 			BatchElement.BaseVertexIndex = 0;
-			BatchElement.IndexBuffer = nullptr;
+			BatchElement.IndexBuffer = nullptr; //not using index buffer
 			
 			// setup required to use IndirectDraw (NumPrimitives=0 + Set IndirectArg parameters)
 			BatchElement.NumPrimitives = 0;
@@ -157,8 +161,7 @@ void FCSProceduralMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSce
 			Collector.AddMesh(ViewIndex, Mesh);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			const FEngineShowFlags& EngineShowFlags = ViewFamily.EngineShowFlags;
-			RenderBounds(Collector.GetPDI(ViewIndex), EngineShowFlags, GetBounds(), IsSelected());
+			RenderBounds(Collector.GetPDI(ViewIndex), ViewFamily.EngineShowFlags, GetBounds(), IsSelected());
 #endif
 		}
 	}

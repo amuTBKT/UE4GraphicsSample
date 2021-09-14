@@ -12,27 +12,38 @@
 AMarchingCubesProceduralMeshActor::AMarchingCubesProceduralMeshActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
-
-	ProceduralMeshComponent = CreateDefaultSubobject<UComputeShaderProceduralMeshComponent>(TEXT("ProceduralMeshComponent"));
 }
 
-void AMarchingCubesProceduralMeshActor::BeginPlay()
+void AMarchingCubesProceduralMeshActor::OnCreatedSceneProxyRendererResources(FCSProceduralMeshSceneProxy* SceneProxy)
 {
-	ENQUEUE_RENDER_COMMAND(MarchingCubesProceduralMeshActor_InitializeResources)(
-		[this](FRHICommandListImmediate& RHICmdList)
-		{
-			using namespace MarchingCubesResourceProvider;
+	ensure(IsInRenderingThread());
 
-			FNumVertsResourceArray NumVertsResourceArray = {};
-			NumVerticesLookupTable.Initialize(FNumVertsResourceArray::BytesPerElement, FNumVertsResourceArray::NumElements, EPixelFormat::PF_R8_UINT, BUF_Static, TEXT("NumVerticesLookupTable"), &NumVertsResourceArray);
+	// initialize lookup buffers
+	{
+		ensure(IsInRenderingThread());
 
-			FTriTableBulkData TriTableBulkData;
-			FRHIResourceCreateInfo CreateInfo = FRHIResourceCreateInfo(&TriTableBulkData);
-			CreateInfo.DebugName = TEXT("TriangleVerticesLookupTable");
-			TriangleVerticesLookupTable.Initialize(FTriTableBulkData::BytesPerElement, FTriTableBulkData::SizeX, FTriTableBulkData::SizeY, EPixelFormat::PF_R8_UINT, TexCreate_ShaderResource, CreateInfo);
-		});
+		using namespace MarchingCubesResourceProvider;
 
-	Super::BeginPlay();
+		FNumVertsResourceArray NumVertsResourceArray = {};
+		NumVerticesLookupTable.Initialize(FNumVertsResourceArray::BytesPerElement, FNumVertsResourceArray::NumElements, EPixelFormat::PF_R8_UINT, BUF_Static, TEXT("NumVerticesLookupTable"), &NumVertsResourceArray);
+
+		FTriTableBulkData TriTableBulkData;
+		FRHIResourceCreateInfo CreateInfo = FRHIResourceCreateInfo(&TriTableBulkData);
+		CreateInfo.DebugName = TEXT("TriangleVerticesLookupTable");
+		TriangleVerticesLookupTable.Initialize(FTriTableBulkData::BytesPerElement, FTriTableBulkData::SizeX, FTriTableBulkData::SizeY, EPixelFormat::PF_R8_UINT, TexCreate_ShaderResource, CreateInfo);
+	}
+
+	// Tick scene proxy once 
+	{
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		
+		FRTParams RTParams = {};
+		RTParams.SceneProxy = SceneProxy;
+		RTParams.IsoValue = IsoValue;
+		RTParams.Time = 0.f;
+
+		TickSceneProxy_RT(RHICmdList, RTParams);
+	}
 }
 
 void AMarchingCubesProceduralMeshActor::BeginDestroy()
@@ -61,7 +72,6 @@ void AMarchingCubesProceduralMeshActor::ResetIndirectDrawArgs(FRDGBuilder& Graph
 
 	ValidateShaderParameters(ComputeShader, *PassParameters);
 
-	// add our pass
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("ResetIndirectDrawArgs"),
@@ -94,38 +104,42 @@ void AMarchingCubesProceduralMeshActor::GenerateTriangles(FRDGBuilder& GraphBuil
 
 	ValidateShaderParameters(ComputeShader, *PassParameters);
 
-	// add our pass
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("GenerateTriangles"),
 		ComputeShader, PassParameters, GroupCount);
 }
 
+void AMarchingCubesProceduralMeshActor::TickSceneProxy_RT(FRHICommandListImmediate& RHICmdList, const FRTParams& RTParams)
+{
+	ensure(IsInRenderingThread());
+
+	const auto FeatureLevel = GetWorld()->Scene->GetFeatureLevel();
+	
+	if (RTParams.SceneProxy && RTParams.SceneProxy->HasValidBuffers())
+	{
+		FMemMark Mark(FMemStack::Get());
+		FRDGBuilder GraphBuilder(RHICmdList);
+
+		ResetIndirectDrawArgs(GraphBuilder, RTParams, FeatureLevel);
+
+		GenerateTriangles(GraphBuilder, RTParams, FeatureLevel);
+
+		GraphBuilder.Execute();
+	}
+}
+
 void AMarchingCubesProceduralMeshActor::Tick(float DeltaSeconds)
 {
-	const auto FeatureLevel = GetWorld()->Scene->GetFeatureLevel();
-
-	FCSProceduralMeshSceneProxy* SceneProxy = (FCSProceduralMeshSceneProxy*)ProceduralMeshComponent->SceneProxy;
-	
 	FRTParams RTParams = {};
-	RTParams.SceneProxy = SceneProxy;
+	RTParams.SceneProxy = (FCSProceduralMeshSceneProxy*)ProceduralMeshComponent->SceneProxy;
 	RTParams.IsoValue = IsoValue;
 	RTParams.Time = AnimationTime;
 
-	ENQUEUE_RENDER_COMMAND(MarchingCubesProceduralMeshActor_GenerateTriangles)(
-		[this, RTParams, FeatureLevel](FRHICommandListImmediate& RHICmdList)
+	ENQUEUE_RENDER_COMMAND(MarchingCubesProceduralMeshActor_TickSceneProxy)(
+		[this, RTParams](FRHICommandListImmediate& RHICmdList)
 		{		
-			if (RTParams.SceneProxy && RTParams.SceneProxy->HasValidBuffers())
-			{
-				FMemMark Mark(FMemStack::Get());
-				FRDGBuilder GraphBuilder(RHICmdList);
-
-				ResetIndirectDrawArgs(GraphBuilder, RTParams, FeatureLevel);
-
-				GenerateTriangles(GraphBuilder, RTParams, FeatureLevel);
-
-				GraphBuilder.Execute();
-			}
+			TickSceneProxy_RT(RHICmdList, RTParams);
 		});
 
 	AnimationTime += DeltaSeconds;
