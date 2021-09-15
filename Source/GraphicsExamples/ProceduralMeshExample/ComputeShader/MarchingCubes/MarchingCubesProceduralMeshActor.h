@@ -29,8 +29,8 @@ private:
 		float Time = 0.f;
 	};
 	void TickSceneProxy_RT(FRHICommandListImmediate& RHICmdList, const FRTParams& RTParams);
-	void ResetIndirectDrawArgs(FRDGBuilder& GraphBuilder, const FRTParams& RTParams, ERHIFeatureLevel::Type FeatureLevel);
-	void GenerateTriangles(FRDGBuilder& GraphBuilder, const FRTParams& RTParams, ERHIFeatureLevel::Type FeatureLevel);
+	void ResetIndirectDrawArgs(FRDGBuilder& GraphBuilder, const FRTParams& RTParams);
+	void GenerateTriangles(FRDGBuilder& GraphBuilder, const FRTParams& RTParams);
 
 public:	
 	UPROPERTY(EditAnywhere, Category = "Voxels")

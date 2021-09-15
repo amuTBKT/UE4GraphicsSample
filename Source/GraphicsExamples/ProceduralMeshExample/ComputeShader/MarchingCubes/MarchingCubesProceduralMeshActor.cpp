@@ -58,13 +58,13 @@ void AMarchingCubesProceduralMeshActor::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void AMarchingCubesProceduralMeshActor::ResetIndirectDrawArgs(FRDGBuilder& GraphBuilder, const FRTParams& RTParams, ERHIFeatureLevel::Type FeatureLevel)
+void AMarchingCubesProceduralMeshActor::ResetIndirectDrawArgs(FRDGBuilder& GraphBuilder, const FRTParams& RTParams)
 {
 	ensure(IsInRenderingThread());
 
 	const FIntVector GroupCount(1, 1, 1);
 
-	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
+	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(RTParams.SceneProxy->GetScene().GetFeatureLevel());
 	TShaderMapRef<FResetIndirectArgsCS> ComputeShader(GlobalShaderMap);
 
 	FResetIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FResetIndirectArgsCS::FParameters>();
@@ -78,7 +78,7 @@ void AMarchingCubesProceduralMeshActor::ResetIndirectDrawArgs(FRDGBuilder& Graph
 		ComputeShader, PassParameters, GroupCount);
 }
 
-void AMarchingCubesProceduralMeshActor::GenerateTriangles(FRDGBuilder& GraphBuilder, const FRTParams& RTParams, ERHIFeatureLevel::Type FeatureLevel)
+void AMarchingCubesProceduralMeshActor::GenerateTriangles(FRDGBuilder& GraphBuilder, const FRTParams& RTParams)
 {
 	ensure(IsInRenderingThread());
 
@@ -87,7 +87,7 @@ void AMarchingCubesProceduralMeshActor::GenerateTriangles(FRDGBuilder& GraphBuil
 		FMath::CeilToInt((float)VoxelCount.Y / (float)FGenerateTrianglesCS::ThreadGroupSizeY),
 		FMath::CeilToInt((float)VoxelCount.Z / (float)FGenerateTrianglesCS::ThreadGroupSizeZ));
 
-	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
+	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(RTParams.SceneProxy->GetScene().GetFeatureLevel());
 	TShaderMapRef<FGenerateTrianglesCS> ComputeShader(GlobalShaderMap);
 
 	FGenerateTrianglesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGenerateTrianglesCS::FParameters>();
@@ -114,16 +114,14 @@ void AMarchingCubesProceduralMeshActor::TickSceneProxy_RT(FRHICommandListImmedia
 {
 	ensure(IsInRenderingThread());
 
-	const auto FeatureLevel = GetWorld()->Scene->GetFeatureLevel();
-	
 	if (RTParams.SceneProxy && RTParams.SceneProxy->HasValidBuffers())
 	{
 		FMemMark Mark(FMemStack::Get());
 		FRDGBuilder GraphBuilder(RHICmdList);
 
-		ResetIndirectDrawArgs(GraphBuilder, RTParams, FeatureLevel);
+		ResetIndirectDrawArgs(GraphBuilder, RTParams);
 
-		GenerateTriangles(GraphBuilder, RTParams, FeatureLevel);
+		GenerateTriangles(GraphBuilder, RTParams);
 
 		GraphBuilder.Execute();
 	}
