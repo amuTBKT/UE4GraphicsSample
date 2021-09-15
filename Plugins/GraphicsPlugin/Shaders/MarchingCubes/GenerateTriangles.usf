@@ -90,7 +90,7 @@ void Main(uint3 DispatchThreadId : SV_DispatchThreadID)
                     PositionBuffer[Index * 3 + 1] = VertList[TriVertex].y;
                     PositionBuffer[Index * 3 + 2] = VertList[TriVertex].z;
                     
-                    TangentBuffer[Index * 2 + 0] = float4(cross(float3(0,1,0), NormList[TriVertex]), 0.0f);
+                    TangentBuffer[Index * 2 + 0] = float4(1.f, 0.f, 0.f, 0.f); //[TODO]
                     TangentBuffer[Index * 2 + 1] = float4(NormList[TriVertex], 0.0f);
                 }
             }
