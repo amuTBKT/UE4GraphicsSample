@@ -1,5 +1,6 @@
 #include "ClearTextureActor.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Engine/Texture2D.h"
 
 // shader from Graphics plugin. [TODO] How to make it nested into GraphicsPlugin/
 #include "ClearTextureShader.h"
@@ -61,14 +62,28 @@ void AClearTextureActor::Tick(float DeltaSeconds)
 	// we can copy some values that can be modified on GameThread
 	struct FParametersRTCopy
 	{
-		FLinearColor	ClearColor;
-		bool			UseAnimation;
-		float			AnimationTime;
+		FShaderResourceViewRHIRef	SourceTextureRHI;
+		FLinearColor				ClearColor;
+		float						AnimationTime;
+		bool						UseAnimation;
+		bool						UseTexture;
 	};
 	FParametersRTCopy RTCopy = {};
 	RTCopy.ClearColor = ClearColor;
-	RTCopy.UseAnimation = bUseAnimation;
 	RTCopy.AnimationTime = AnimationTime;
+	RTCopy.UseAnimation = bUseAnimation;
+	RTCopy.UseTexture = bUseTexture && (SourceTexture != nullptr);
+	if (RTCopy.UseTexture)
+	{
+		// we can cache SRV, recreating to make the code easier to follow
+		RTCopy.SourceTextureRHI = RHICreateShaderResourceView(SourceTexture->Resource->TextureRHI, 0);
+		// we can use this as SourceSampler, SourceTexture->Resource->SamplerStateRHI
+	}
+	else
+	{
+		// use dummy texture to make sure we bind something
+		RTCopy.SourceTextureRHI = GBlackTextureWithSRV->ShaderResourceViewRHI;
+	}
 
 	// queue work on RenderThread to update texture
 	ENQUEUE_RENDER_COMMAND(ClearTextureActor_ClearTexture)(
@@ -88,6 +103,7 @@ void AClearTextureActor::Tick(float DeltaSeconds)
 			// update Permutation to select proper shader
 			FClearTextureCS::FPermutationDomain Permutation;
 			Permutation.Set<FClearTextureCS::FUseAnimation>(RTCopy.UseAnimation);
+			Permutation.Set<FClearTextureCS::FUseTexture>(RTCopy.UseTexture);
 
 			// get GlobalShaderMap
 			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
@@ -97,6 +113,8 @@ void AClearTextureActor::Tick(float DeltaSeconds)
 			// this is the new way of adding parameters, very easy to use :)
 			FClearTextureCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearTextureCS::FParameters>();
 			PassParameters->OutputTexture = ResultTextureUAV;
+			PassParameters->SourceTexture = RTCopy.SourceTextureRHI;
+			PassParameters->SourceSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 			PassParameters->ClearColor = FVector4(RTCopy.ClearColor);
 			PassParameters->TextureDimensions = FVector4(RTWidth, RTHeight, 1.f / RTWidth, 1.f / RTHeight);
 			PassParameters->AnimationTime = RTCopy.AnimationTime;

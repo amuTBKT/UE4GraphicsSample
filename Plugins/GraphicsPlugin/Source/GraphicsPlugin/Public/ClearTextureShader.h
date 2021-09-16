@@ -16,7 +16,8 @@ class GRAPHICSPLUGIN_API FClearTextureCS : public FGlobalShader
 
 	// Permutations are used to enable/disable shader code at compile time
 	class FUseAnimation : SHADER_PERMUTATION_BOOL("USE_ANIMATION");
-	using FPermutationDomain = TShaderPermutationDomain<FUseAnimation>;
+	class FUseTexture : SHADER_PERMUTATION_BOOL("USE_TEXTURE");
+	using FPermutationDomain = TShaderPermutationDomain<FUseAnimation,FUseTexture>;
 	
 	/**
 	* Mirror variables defined in shader
@@ -25,6 +26,8 @@ class GRAPHICSPLUGIN_API FClearTextureCS : public FGlobalShader
 	*/
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_UAV(RWTexture<float4>, OutputTexture)
+		SHADER_PARAMETER_SRV(Texture2D, SourceTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SourceSampler)
 		SHADER_PARAMETER(FVector4, ClearColor)
 		SHADER_PARAMETER(FVector4, TextureDimensions)
 		SHADER_PARAMETER(float, AnimationTime)

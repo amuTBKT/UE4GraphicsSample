@@ -6,8 +6,15 @@
 #define USE_ANIMATION 0
 #endif
 
+// in case we forget to set 'USE_TEXTURE' definition in code
+#ifndef USE_TEXTURE
+#define USE_TEXTURE 0
+#endif
+
 // Parameters, should match the ones in code
 RWTexture2D<float4> OutputTexture;
+Texture2D SourceTexture;
+SamplerState SourceSampler;
 float4 ClearColor;
 float4 TextureDimensions; // Width, Height, 1/Width, 1/Height
 float AnimationTime;
@@ -26,6 +33,9 @@ void Main(uint3 DispatchThreadId : SV_DispatchThreadID)
         float2 UV = ScreenPosition * TextureDimensions.zw;
         OutputColor.xyz = 0.5f + 0.5f * cos(AnimationTime + UV.xyx + float3(0.f, 2.f, 4.f));
         OutputColor.w = 1.f;
+    #elif USE_TEXTURE
+        float2 UV = ScreenPosition * TextureDimensions.zw;
+        OutputColor = SourceTexture.SampleLevel(SourceSampler, UV, 0);
     #endif
         
         OutputTexture[DispatchThreadId.xy] = OutputColor;
