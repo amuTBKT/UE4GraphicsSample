@@ -1,0 +1,148 @@
+#pragma once
+
+struct FSplineHelper
+{
+    /** 
+        * this function assumes the texutre size is (NuSegmentCountPerInstance by NumInstances)
+        * we can do some packing to make sure the texture is uniformly scaled (not too long in X or Y axis)
+          that would need modifying Niagra system writing texture data as well.
+    */
+    void GetSplineParams(
+        float Alpha,
+        float SegmentCountPerInstance,
+        in float SplineId,
+        in Texture2D SplinePositionTexture,
+        in Texture2D SplineTangentTexture,
+        out float3 SplineStartPos,
+        out float3 SplineStartTangent,
+        out float3 SplineEndPos,
+        out float3 SplineEndTangent,
+        out float StartScale,
+        out float EndScale,
+        out float StartRoll,
+        out float EndRoll)
+    {
+        int SegmentIndex0 = floor(saturate(Alpha) * (float)(SegmentCountPerInstance-1));
+        int SegmentIndex1 = min(SegmentCountPerInstance-1, SegmentIndex0 + 1);
+
+        float4 SplineStartPosScale = SplinePositionTexture.Load(int3(SegmentIndex0, SplineId, 0));
+        float4 SplineEndPosScale = SplinePositionTexture.Load(int3(SegmentIndex1, SplineId, 0));
+        float4 SplineStartTangentRoll = SplineTangentTexture.Load(int3(SegmentIndex0, SplineId, 0));
+        float4 SplineEndTangentRoll = SplineTangentTexture.Load(int3(SegmentIndex1, SplineId, 0));
+
+        SplineStartPos = SplineStartPosScale.xyz;
+        SplineEndPos = SplineEndPosScale.xyz;
+        StartScale = SplineStartPosScale.w;
+        EndScale = SplineEndPosScale.w;
+
+        SplineStartTangent = SplineStartTangentRoll.xyz;
+        SplineEndTangent = SplineEndTangentRoll.xyz;
+        StartRoll = SplineStartTangentRoll.w;
+        EndRoll = SplineEndTangentRoll.w;
+    }
+
+    // the code from this point is taken from LocalVertexFactory.ush with changes to load SplineParams from texture so that they can change per instance
+    float3 SplineEvalPos(float3 StartPos, float3 StartTangent, float3 EndPos, float3 EndTangent, float A)
+    {
+        float A2 = A  * A;
+        float A3 = A2 * A;
+
+        return (((2*A3)-(3*A2)+1) * StartPos) + ((A3-(2*A2)+A) * StartTangent) + ((A3-A2) * EndTangent) + (((-2*A3)+(3*A2)) * EndPos);
+    }
+
+    float3 SplineEvalDir(float3 StartPos, float3 StartTangent, float3 EndPos, float3 EndTangent, float A)
+    {
+        float3 C = (6*StartPos) + (3*StartTangent) + (3*EndTangent) - (6*EndPos);
+        float3 D = (-6*StartPos) - (4*StartTangent) - (2*EndTangent) + (6*EndPos);
+        float3 E = StartTangent;
+
+        float A2 = A  * A;
+
+        return normalize((C * A2) + (D * A) + E);
+    }
+
+    float4 TransformLocalToTranslatedWorld(float3 LocalPosition, uint PrimitiveId)
+    {
+        float4x4 LocalToWorld = GetPrimitiveData(PrimitiveId).LocalToWorld;
+        float3 RotatedPosition = LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz;
+        return float4(RotatedPosition + (LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz),1);
+    }
+
+    void CalcSliceTransform(
+        float SegmentCountPerInstance,
+        float SplineMeshScaleZ,
+        float SplineMeshMinZ,
+        float3 SplineMeshDir,
+        float3 SplineMeshX,
+        float3 SplineMeshY,
+        Texture2D SplinePositionTexture,
+        Texture2D SplineTangentTexture,
+        float SplineId,
+        float3 LocalPosition,
+        float3 LocalNormal,
+        out float3 TransformedPosition,
+        out float3 TransformedNormal)
+    {
+        // HARDCODED PARAMETERS
+        const bool SmoothInterpRollScale = true;
+        const float2 SplineStartOffset = float2(0.f, 0.f);
+        const float2 SplineEndOffset = float2(0.f, 0.f);
+        // HARDCODED PARAMETERS
+
+        // Find how far 'along' mesh we are
+        float Alpha = dot(SplineMeshDir, LocalPosition) * SplineMeshScaleZ - SplineMeshMinZ;
+
+        // Apply hermite interp to Alpha if desired
+        float HermiteAlpha = SmoothInterpRollScale ? smoothstep(0.0, 1.0, Alpha) : Alpha;
+
+        ////////////////////////////////////////////////////////
+        float3 SplineStartPos, SplineStartTangent, SplineEndPos, SplineEndTangent;
+        float SplineStartScale, SplineEndScale;
+        float SplineStartRoll, SplineEndRoll;
+
+        GetSplineParams(
+            Alpha, SegmentCountPerInstance, SplineId,
+            SplinePositionTexture, SplineTangentTexture,
+            SplineStartPos, SplineStartTangent, SplineEndPos, SplineEndTangent,
+            SplineStartScale, SplineEndScale, SplineStartRoll, SplineEndRoll);
+
+        // this is a bit dodgy but seems to work
+        float3 SplineUpDir = cross(SplineStartTangent, normalize(SplineStartPos));
+        SplineUpDir = cross(SplineUpDir, SplineStartTangent);
+        ////////////////////////////////////////////////////////
+
+        // Then find the point and direction of the spline at this point along
+        float3 SplinePos = SplineEvalPos( SplineStartPos, SplineStartTangent, SplineEndPos, SplineEndTangent, Alpha );
+        float3 SplineDir = SplineEvalDir( SplineStartPos, SplineStartTangent, SplineEndPos, SplineEndTangent, Alpha );
+
+        // Find base frenet frame
+        float3 BaseXVec = normalize( cross(SplineUpDir, SplineDir) );
+        float3 BaseYVec = normalize( cross(SplineDir, BaseXVec) );
+
+        // Offset from the spline, using the frenet frame
+        float2 SliceOffset = lerp(SplineStartOffset, SplineEndOffset, HermiteAlpha);
+        SplinePos += SliceOffset.x * BaseXVec;
+        SplinePos += SliceOffset.y * BaseYVec;
+
+        // Apply roll to frame around spline
+        float UseRoll = lerp(SplineStartRoll, SplineEndRoll, HermiteAlpha);
+        float SinAng, CosAng;
+        sincos(UseRoll, SinAng, CosAng);
+        float3 XVec = (CosAng * BaseXVec) - (SinAng * BaseYVec);
+        float3 YVec = (CosAng * BaseYVec) + (SinAng * BaseXVec);
+
+        // Find scale at this point along spline
+        float UseScale = lerp(SplineStartScale, SplineEndScale, HermiteAlpha);
+
+        XVec *= UseScale;
+        YVec *= UseScale;
+
+        // Build overall transform
+        float3x3 SliceTransform3 = mul(transpose(float3x3(SplineMeshDir, SplineMeshX, SplineMeshY)), float3x3(float3(0,0,0), XVec, YVec));
+        float4x3 SliceTransform = float4x3(SliceTransform3[0], SliceTransform3[1], SliceTransform3[2], SplinePos);
+
+        TransformedPosition = float3(mul(float4(LocalPosition, 1.f), SliceTransform).xyz);
+
+        TransformedNormal = float3(mul(float4(LocalNormal, 0.f), SliceTransform).xyz);
+    }
+};
