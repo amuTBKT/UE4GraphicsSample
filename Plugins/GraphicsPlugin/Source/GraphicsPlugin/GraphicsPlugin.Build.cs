@@ -25,6 +25,15 @@ namespace UnrealBuildTool.Rules
 					"Renderer",
 				});
 
+			// these modules are needed to use Niagara
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Niagara",
+					"VectorVM",
+					"NiagaraCore",
+				});
+
 			PublicIncludePaths.AddRange(
         		new string[]
         		{

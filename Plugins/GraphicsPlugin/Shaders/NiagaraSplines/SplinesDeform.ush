@@ -13,10 +13,13 @@ struct FSplineHelper
         in float SplineId,
         in Texture2D SplinePositionTexture,
         in Texture2D SplineTangentTexture,
+        in Texture2D SplineNormalTexture,
         out float3 SplineStartPos,
         out float3 SplineStartTangent,
         out float3 SplineEndPos,
         out float3 SplineEndTangent,
+        out float3 SplineStartNormal,
+        out float3 SplineEndNormal,
         out float StartScale,
         out float EndScale,
         out float StartRoll,
@@ -29,14 +32,17 @@ struct FSplineHelper
         float4 SplineEndPosScale = SplinePositionTexture.Load(int3(SegmentIndex1, SplineId, 0));
         float4 SplineStartTangentRoll = SplineTangentTexture.Load(int3(SegmentIndex0, SplineId, 0));
         float4 SplineEndTangentRoll = SplineTangentTexture.Load(int3(SegmentIndex1, SplineId, 0));
+        
+        SplineStartNormal = SplineNormalTexture.Load(int3(SegmentIndex0, SplineId, 0)).xyz * 2.f - 1.f;
+        SplineEndNormal = SplineNormalTexture.Load(int3(SegmentIndex1, SplineId, 0)).xyz * 2.f - 1.f;
 
         SplineStartPos = SplineStartPosScale.xyz;
         SplineEndPos = SplineEndPosScale.xyz;
         StartScale = SplineStartPosScale.w;
         EndScale = SplineEndPosScale.w;
 
-        SplineStartTangent = SplineStartTangentRoll.xyz;
-        SplineEndTangent = SplineEndTangentRoll.xyz;
+        SplineStartTangent = SplineStartTangentRoll.xyz * 2.f - 1.f;
+        SplineEndTangent = SplineEndTangentRoll.xyz * 2.f - 1.f;
         StartRoll = SplineStartTangentRoll.w;
         EndRoll = SplineEndTangentRoll.w;
     }
@@ -77,6 +83,7 @@ struct FSplineHelper
         float3 SplineMeshY,
         Texture2D SplinePositionTexture,
         Texture2D SplineTangentTexture,
+        Texture2D SplineNormalTexture,
         float SplineId,
         float3 LocalPosition,
         float3 LocalNormal,
@@ -97,18 +104,18 @@ struct FSplineHelper
 
         ////////////////////////////////////////////////////////
         float3 SplineStartPos, SplineStartTangent, SplineEndPos, SplineEndTangent;
+        float3 SplineStartNormal, SplineEndNormal;
         float SplineStartScale, SplineEndScale;
         float SplineStartRoll, SplineEndRoll;
 
         GetSplineParams(
             Alpha, SegmentCountPerInstance, SplineId,
-            SplinePositionTexture, SplineTangentTexture,
+            SplinePositionTexture, SplineTangentTexture, SplineNormalTexture,
             SplineStartPos, SplineStartTangent, SplineEndPos, SplineEndTangent,
+            SplineStartNormal, SplineEndNormal,
             SplineStartScale, SplineEndScale, SplineStartRoll, SplineEndRoll);
 
-        // this is a bit dodgy but seems to work
-        float3 SplineUpDir = cross(SplineStartTangent, normalize(SplineStartPos));
-        SplineUpDir = cross(SplineUpDir, SplineStartTangent);
+        float3 SplineUpDir = normalize(lerp(SplineStartNormal, SplineEndNormal, HermiteAlpha));
         ////////////////////////////////////////////////////////
 
         // Then find the point and direction of the spline at this point along
