@@ -5,7 +5,6 @@
 #include "VectorVM.h"
 #include "NiagaraDataInterfacePlayerInput.generated.h"
 
-class USplineDeformedMeshComponent;
 struct FPerInstanceData_GT;
 
 //------------------------------------------------------------------------------------------------------------

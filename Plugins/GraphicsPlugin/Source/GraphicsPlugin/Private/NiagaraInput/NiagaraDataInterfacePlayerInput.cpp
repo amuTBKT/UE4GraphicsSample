@@ -21,8 +21,8 @@ const FName UNiagaraDataInterfacePlayerInput::WasInputKeyJustReleased_FuncName(T
 
 struct FPerInstanceData_GT
 {
-    TWeakObjectPtr<APlayerController> PlayerController;
-    int32 PlayerControllerIndex;
+    TWeakObjectPtr<APlayerController> PlayerController = nullptr;
+    int32 PlayerControllerIndex = -1;
 };
 
 int32 UNiagaraDataInterfacePlayerInput::PerInstanceDataSize() const
@@ -181,26 +181,27 @@ void UNiagaraDataInterfacePlayerInput::GetFunctions(TArray<FNiagaraFunctionSigna
 void UNiagaraDataInterfacePlayerInput::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
     Super::GetVMExternalFunction(BindingInfo, InstanceData, OutFunc);
-
-    const FName InputKeyName = BindingInfo.FindSpecifier(UNiagaraDataInterfacePlayerInput::InputKeyNameSpecifier_VarName)->Value;
-    const FKey InputKey = FKey(InputKeyName);
     
     if (BindingInfo.Name == UNiagaraDataInterfacePlayerInput::GetInputAxisValue_FuncName)
     {
+        const FName InputKeyName = BindingInfo.FindSpecifier(UNiagaraDataInterfacePlayerInput::InputKeyNameSpecifier_VarName)->Value;
+        const FKey InputKey = FKey(InputKeyName);
+    
         check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
         OutFunc = FVMExternalFunction::CreateLambda([InputKey](FVectorVMContext& Context)
         {
             VectorVM::FUserPtrHandler<FPerInstanceData_GT> InstanceData(Context);
             FNDIOutputParam<float> OutValues(Context);
 
+            // this is same for all the instances/threads
+            float Value = 0.f;
+            if (APlayerController* PlayerController = InstanceData->PlayerController.Get())
+            {
+                Value = PlayerController->GetInputAnalogKeyState(InputKey);
+            }
+
             for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
             {
-                float Value = 0.f;
-                if (APlayerController* PlayerController = InstanceData->PlayerController.Get())
-                {
-                    Value = PlayerController->GetInputAnalogKeyState(InputKey);
-                }
-
                 OutValues.SetAndAdvance(Value);
             }
         });
@@ -208,8 +209,8 @@ void UNiagaraDataInterfacePlayerInput::GetVMExternalFunction(const FVMExternalFu
     else //boolean functions
     {
         using GetKeyStateBoolFunc = bool(APlayerController::*)(FKey) const;
-
         GetKeyStateBoolFunc Func = nullptr;
+
         if (BindingInfo.Name == UNiagaraDataInterfacePlayerInput::IsInputKeyDown_FuncName)
         {
             check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
@@ -228,19 +229,23 @@ void UNiagaraDataInterfacePlayerInput::GetVMExternalFunction(const FVMExternalFu
 
         if (Func)
         {
+            const FName InputKeyName = BindingInfo.FindSpecifier(UNiagaraDataInterfacePlayerInput::InputKeyNameSpecifier_VarName)->Value;
+            const FKey InputKey = FKey(InputKeyName);
+
             OutFunc = FVMExternalFunction::CreateLambda([InputKey, Func](FVectorVMContext& Context)
             {
                 VectorVM::FUserPtrHandler<FPerInstanceData_GT> InstanceData(Context);
                 FNDIOutputParam<bool> OutValues(Context);
 
+                // this is same for all the instances/threads
+                bool Value = false;
+                if (APlayerController* PlayerController = InstanceData->PlayerController.Get())
+                {
+                    Value = (PlayerController->*Func)(InputKey);
+                }
+
                 for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
                 {
-                    bool Value = false;
-                    if (APlayerController* PlayerController = InstanceData->PlayerController.Get())
-                    {
-                        Value = (PlayerController->*Func)(InputKey);
-                    }
-
                     OutValues.SetAndAdvance(Value);
                 }
             });
