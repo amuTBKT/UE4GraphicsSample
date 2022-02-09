@@ -9,7 +9,7 @@ struct FPerInstanceData_GT;
 
 //------------------------------------------------------------------------------------------------------------
 
-/** Data Interface for rendering InstancedStaticMesh */
+/** Data Interface for querying Player Input */
 UCLASS(EditInlineNew, Category = "PlayerInput", meta = (DisplayName = "PlayerInput"), Blueprintable, BlueprintType)
 class UNiagaraDataInterfacePlayerInput : public UNiagaraDataInterface
 {
