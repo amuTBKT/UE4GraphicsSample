@@ -11,9 +11,10 @@ struct FSplineHelper
         float Alpha,
         float SegmentCountPerInstance,
         in float SplineId,
-        in Texture2D SplinePositionTexture,
-        in Texture2D SplineTangentTexture,
-        in Texture2D SplineNormalTexture,
+        in float CurrentFrameIndex,
+        in Texture2DArray SplinePositionTexture,
+        in Texture2DArray SplineTangentTexture,
+        in Texture2DArray SplineNormalTexture,
         out float3 SplineStartPos,
         out float3 SplineStartTangent,
         out float3 SplineEndPos,
@@ -28,13 +29,13 @@ struct FSplineHelper
         int SegmentIndex0 = floor(saturate(Alpha) * (float)(SegmentCountPerInstance-1));
         int SegmentIndex1 = min(SegmentCountPerInstance-1, SegmentIndex0 + 1);
 
-        float4 SplineStartPosScale = SplinePositionTexture.Load(int3(SegmentIndex0, SplineId, 0));
-        float4 SplineEndPosScale = SplinePositionTexture.Load(int3(SegmentIndex1, SplineId, 0));
-        float4 SplineStartTangentRoll = SplineTangentTexture.Load(int3(SegmentIndex0, SplineId, 0));
-        float4 SplineEndTangentRoll = SplineTangentTexture.Load(int3(SegmentIndex1, SplineId, 0));
+        float4 SplineStartPosScale = SplinePositionTexture.Load(int4(SegmentIndex0, SplineId, CurrentFrameIndex, 0));
+        float4 SplineEndPosScale = SplinePositionTexture.Load(int4(SegmentIndex1, SplineId, CurrentFrameIndex, 0));
+        float4 SplineStartTangentRoll = SplineTangentTexture.Load(int4(SegmentIndex0, SplineId, CurrentFrameIndex, 0));
+        float4 SplineEndTangentRoll = SplineTangentTexture.Load(int4(SegmentIndex1, SplineId, CurrentFrameIndex, 0));
         
-        SplineStartNormal = SplineNormalTexture.Load(int3(SegmentIndex0, SplineId, 0)).xyz * 2.f - 1.f;
-        SplineEndNormal = SplineNormalTexture.Load(int3(SegmentIndex1, SplineId, 0)).xyz * 2.f - 1.f;
+        SplineStartNormal = SplineNormalTexture.Load(int4(SegmentIndex0, SplineId, CurrentFrameIndex, 0)).xyz * 2.f - 1.f;
+        SplineEndNormal = SplineNormalTexture.Load(int4(SegmentIndex1, SplineId, CurrentFrameIndex, 0)).xyz * 2.f - 1.f;
 
         SplineStartPos = SplineStartPosScale.xyz;
         SplineEndPos = SplineEndPosScale.xyz;
@@ -81,10 +82,11 @@ struct FSplineHelper
         float3 SplineMeshDir,
         float3 SplineMeshX,
         float3 SplineMeshY,
-        Texture2D SplinePositionTexture,
-        Texture2D SplineTangentTexture,
-        Texture2D SplineNormalTexture,
+        Texture2DArray SplinePositionTexture,
+        Texture2DArray SplineTangentTexture,
+        Texture2DArray SplineNormalTexture,
         float SplineId,
+        float CurrentFrameIndex,
         float3 LocalPosition,
         float3 LocalNormal,
         out float3 TransformedPosition,
@@ -109,7 +111,7 @@ struct FSplineHelper
         float SplineStartRoll, SplineEndRoll;
 
         GetSplineParams(
-            Alpha, SegmentCountPerInstance, SplineId,
+            Alpha, SegmentCountPerInstance, SplineId, CurrentFrameIndex,
             SplinePositionTexture, SplineTangentTexture, SplineNormalTexture,
             SplineStartPos, SplineStartTangent, SplineEndPos, SplineEndTangent,
             SplineStartNormal, SplineEndNormal,
