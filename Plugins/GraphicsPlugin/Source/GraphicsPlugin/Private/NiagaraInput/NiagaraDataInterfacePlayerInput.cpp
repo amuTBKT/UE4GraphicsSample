@@ -144,8 +144,11 @@ void UNiagaraDataInterfacePlayerInput::GetFunctions(TArray<FNiagaraFunctionSigna
         Sig.FunctionSpecifiers.Add(UNiagaraDataInterfacePlayerInput::InputKeyNameSpecifier_VarName);
 
         Sig.bExperimental = true;
-        Sig.ExperimentalMessage = NSLOCTEXT("Niagara", "PlayerInputDIFunctionExperimental", "This DataInterface was just a test, please don't use this at work ;)");
 
+    #if WITH_EDITORONLY_DATA
+        Sig.ExperimentalMessage = NSLOCTEXT("Niagara", "PlayerInputDIFunctionExperimental", "This DataInterface was just a test, please don't use this at work ;)");
+    #endif
+        
         return Sig;
     };
 
